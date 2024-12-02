@@ -18,6 +18,7 @@ from builtins import range
 from datetime import datetime
 from unittest.mock import patch
 from uuid import uuid4
+import uuid
 
 # Third-party imports
 import pytest
@@ -45,12 +46,25 @@ engine = create_async_engine(TEST_DATABASE_URL, echo=settings.debug)
 AsyncTestingSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 AsyncSessionScoped = scoped_session(AsyncTestingSessionLocal)
 
-
+'''
 @pytest.fixture
 def email_service():
     # Assuming the TemplateManager does not need any arguments for initialization
     template_manager = TemplateManager()
     email_service = EmailService(template_manager=template_manager)
+    return email_service
+'''
+from unittest.mock import MagicMock, AsyncMock
+import pytest
+
+@pytest.fixture
+def email_service():
+    template_manager = TemplateManager()
+    email_service = EmailService(template_manager=template_manager)
+    
+    # Mock the send_user_email method to prevent actual email sending
+    email_service.send_user_email = AsyncMock(return_value=None)  # Mock async function
+    
     return email_service
 
 
@@ -79,9 +93,10 @@ async def setup_database():
     yield
     async with engine.begin() as conn:
         # you can comment out this line during development if you are debugging a single test
-         await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.drop_all)
     await engine.dispose()
 
+'''
 @pytest.fixture(scope="function")
 async def db_session(setup_database):
     async with AsyncSessionScoped() as session:
@@ -89,6 +104,16 @@ async def db_session(setup_database):
             yield session
         finally:
             await session.close()
+'''
+
+@pytest.fixture(scope="function")
+async def db_session(setup_database):
+    session = AsyncSessionScoped()
+    try:
+        yield session
+    finally:
+        await session.close()
+        await engine.dispose()  # Ensures proper cleanup
 
 @pytest.fixture(scope="function")
 async def locked_user(db_session):
@@ -219,7 +244,8 @@ def user_base_data():
         "email": "john.doe@example.com",
         "full_name": "John Doe",
         "bio": "I am a software engineer with over 5 years of experience.",
-        "profile_picture_url": "https://example.com/profile_pictures/john_doe.jpg"
+        "profile_picture_url": "https://example.com/profile_pictures/john_doe.jpg",
+        "nickname": "Johnny"  # Add nickname
     }
 
 @pytest.fixture
@@ -243,9 +269,11 @@ def user_update_data():
         "email": "john.doe.new@example.com",
         "full_name": "John H. Doe",
         "bio": "I specialize in backend development with Python and Node.js.",
-        "profile_picture_url": "https://example.com/profile_pictures/john_doe_updated.jpg"
+        "profile_picture_url": "https://example.com/profile_pictures/john_doe_updated.jpg",
+        "first_name": "John"  # Add first_name to the dictionary
+                    
     }
-
+'''
 @pytest.fixture
 def user_response_data():
     return {
@@ -257,7 +285,70 @@ def user_response_data():
         "updated_at": datetime.now(),
         "links": []
     }
-
+'''
+@pytest.fixture
+def user_response_data():
+    return {
+        "id": uuid.uuid4(),
+        "username": "testuser",
+        "email": "test@example.com",
+        "last_login_at": datetime.now(),
+        "created_at": datetime.now(),
+        "updated_at": datetime.now(),
+        "links": []
+    }
+'''
 @pytest.fixture
 def login_request_data():
     return {"username": "john_doe_123", "password": "SecurePassword123!"}
+'''
+
+@pytest.fixture
+def login_request_data():
+    return {
+        "username": "john_doe_123", 
+        "password": "SecurePassword123!", 
+        "email": "john.doe@example.com"  # Add email to the test data
+    }
+
+
+# Additional Code Fixtures-----
+
+# Fixture to generate a JWT token for a regular user
+'''
+@pytest.fixture
+async def user_token(user):
+    """Fixture to get a user token for a regular user."""
+    assert user.id, "User must have an ID to generate a token"
+    token = encode_token(user, role=user.role)  # Pass role dynamically    
+    #token = encode_token(user)  # Assuming encode_token generates JWT token
+    return token
+'''
+
+@pytest.fixture
+async def user_token(user):
+    """Fixture to get a user token for a regular user."""
+    assert user.id, "User must have an ID to generate a token"
+    token = encode_token(user)  # Assuming encode_token generates JWT token
+    return token
+
+
+
+from datetime import datetime, timedelta
+from jose import JWTError, jwt
+from app.models.user_model import User
+
+jwt_secret_key = "your-secret-key"  # Replace with your actual secret key
+ALGORITHM = "HS256"
+
+
+def encode_token(user: User, role: str = "USER"):
+    """Generate a JWT token for the user with a specific role."""
+    expiration = datetime.utcnow() + timedelta(hours=1)
+    payload = {
+        "sub": str(user.id),
+        "exp": expiration,
+        "role": role,  # Use the passed role here
+    }
+    return jwt.encode(payload, jwt_secret_key, algorithm=ALGORITHM)
+

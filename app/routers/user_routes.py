@@ -107,6 +107,19 @@ async def update_user(user_id: UUID, user_update: UserUpdate, request: Request, 
         links=create_user_links(updated_user.id, request)
     )
 
+'''
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT, name="delete_user", tags=["User Management Requires (Admin or Manager Roles)"])
+async def delete_user(user_id: UUID, db: AsyncSession = Depends(get_db), token: str = Depends(oauth2_scheme), current_user: dict = Depends(require_role(["ADMIN", "MANAGER"]))):
+    """
+    Delete a user by their ID.
+
+    - **user_id**: UUID of the user to delete.
+    """
+    success = await UserService.delete(db, user_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+'''
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT, name="delete_user", tags=["User Management Requires (Admin or Manager Roles)"])
 async def delete_user(user_id: UUID, db: AsyncSession = Depends(get_db), token: str = Depends(oauth2_scheme), current_user: dict = Depends(require_role(["ADMIN", "MANAGER"]))):

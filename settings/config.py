@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 15  # 15 minutes for access token
     refresh_token_expire_minutes: int = 1440  # 24 hours for refresh token
     # Database configuration
-    database_url: str = Field(default='postgresql+asyncpg://user:password@postgres/myappdb', description="URL for connecting to the database")
+    database_url: str = Field(default='postgresql+asyncpg://user:password@postgres:5432/myappdb', description="URL for connecting to the database")
 
     # Optional: If preferring to construct the SQLAlchemy database URL from components
     postgres_user: str = Field(default='user', description="PostgreSQL username")
